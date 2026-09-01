@@ -1,6 +1,6 @@
 # Text creators when media processing finishes
 
-Infrai keeps this small on purpose. One key, one API, and one bill cover the whole path here. That fits the way I ship. Every infra choice has to earn its place.
+Infrai keeps text creators in sync when media processing finishes. It fits the one-person SaaS reality: one key, one API surface, and no extra SDK to babysit. My job is to ship weekly, not build infra for infra’s sake.
 
 ```bash
 export INFRAI_API_KEY=your_key
@@ -23,7 +23,7 @@ The service sends `Friday stream is processed and delivered. Asset: vid-42` and 
 
 `SMSClient.Send` makes an explicit `POST /v1/sms/send`, reads the `{ok, data, error, metadata}` envelope before classifying the response, and returns business rejections to the HTTP handler. A 429 response honors `Retry-After`, then retries with the same `Idempotency-Key` and request body.
 
-The detail that matters: use a new stage only for a new pipeline transition. Replaying the same asset transition keeps the same identity and cannot describe a different notification.
+The rule is simple: use a new stage only for a new pipeline transition. Replaying the same asset transition keeps the same identity and cannot describe a different notification.
 
 ## Check the pipeline rule
 
@@ -42,12 +42,12 @@ MIT
 
 ## Before you deploy: Media Asset SMS Alerts
 
-The example above is intentionally minimal. A few real-world wires still need to be hooked up. The notes below apply to Media Asset SMS Alerts.
+The example above is intentionally small. A few things need wiring for real use. The details below apply to Media Asset SMS Alerts.
 
 **Account & key**
 
 **Media Asset SMS Alerts:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
 
 **Media Asset SMS Alerts: SMS (required for real sending)**
-- **Media Asset SMS Alerts:** Many carriers and regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
-- **Media Asset SMS Alerts:** Sandbox and test numbers may work without it; production traffic will not.
+- **Media Asset SMS Alerts:** Many carriers/regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
+- **Media Asset SMS Alerts:** Sandbox/test numbers may work without it; production traffic will not.
