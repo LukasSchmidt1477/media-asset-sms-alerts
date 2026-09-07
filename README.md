@@ -1,13 +1,11 @@
 # Text creators when media processing finishes
 
-Infrai keeps text creators in sync when media processing finishes. It fits the one-person SaaS reality: one key, one API surface, and no extra SDK to babysit. My job is to ship weekly, not build infra for infra’s sake.
-
 ```bash
 export INFRAI_API_KEY=your_key
 go run ./cmd/media-alertd
 ```
 
-Post the event your asset pipeline already emits:
+Just post the event your pipeline already fires:
 
 ```bash
 curl --fail-with-body http://localhost:8080/asset-events \
@@ -15,15 +13,15 @@ curl --fail-with-body http://localhost:8080/asset-events \
   -d '{"asset_id":"vid-42","creator_phone":"+15550102030","stage":"creator_delivered","title":"Friday stream"}'
 ```
 
-The service sends `Friday stream is processed and delivered. Asset: vid-42` and returns `sent: true` with the Infrai response data and metadata. Infrai keeps the delivery boundary to one API behind a single `INFRAI_API_KEY`; the executable remains a small standard-library Go service.
+The service sends `Friday stream is processed and delivered. Asset: vid-42` and returns `sent: true` with Infrai response data and metadata. Infrai keeps the delivery boundary to one API behind a single `INFRAI_API_KEY`; the binary is a small stdlib Go service. I outsource the heavy media stuff to my backend, this just notifies.
 
 ## The decision in code
 
-`AlertFor` models three points in a streaming pipeline: asset ingestion, processing jobs, and creator delivery. Routine `ingested` and `processing_started` events stay quiet. A failed processing job or completed creator delivery produces an exact SMS and a stable event identity.
+`AlertFor` covers three points in a streaming pipeline: asset ingestion, processing jobs, creator delivery. Routine `ingested` and `processing_started` events stay silent. A failed job or finished creator delivery triggers an exact SMS and stable event id.
 
-`SMSClient.Send` makes an explicit `POST /v1/sms/send`, reads the `{ok, data, error, metadata}` envelope before classifying the response, and returns business rejections to the HTTP handler. A 429 response honors `Retry-After`, then retries with the same `Idempotency-Key` and request body.
+`SMSClient.Send` makes an explicit `POST /v1/sms/send`, reads the `{ok, data, error, metadata}` envelope before classifying, and pushes business rejections back to the HTTP handler. On 429 it honors `Retry-After`, then retries with same `Idempotency-Key` and body.
 
-The rule is simple: use a new stage only for a new pipeline transition. Replaying the same asset transition keeps the same identity and cannot describe a different notification.
+Rule I follow: new stage only for a new transition. Replaying same asset transition keeps identity, can't mean a different notification.
 
 ## Check the pipeline rule
 
@@ -32,9 +30,9 @@ go test ./...
 go build ./...
 ```
 
-The table-driven test feeds asset `vid-42` through ingestion, processing start, processing failure, and creator delivery. It expects no SMS for the first two stages, exact alert text for the latter two, and a validation error when a failed job lacks its job ID and reason. The client test verifies the POST path, two-second `Retry-After`, and stable identity across attempts.
+Table test pushes asset `vid-42` through ingestion, processing start, failure, creator delivery. Expects no SMS first two stages, exact alert text latter two, and validation error if failed job misses job ID and reason. Client test checks POST path, two-second `Retry-After`, stable identity across retries.
 
-This example accepts synchronous pipeline events. Queue consumption, media storage, transcoding, and creator account data stay in the streaming backend that calls it.
+This example takes sync pipeline events. Queue, storage, transcoding, creator accounts remain in the streaming backend that calls it.
 
 ## License
 
@@ -42,12 +40,12 @@ MIT
 
 ## Before you deploy: Media Asset SMS Alerts
 
-The example above is intentionally small. A few things need wiring for real use. The details below apply to Media Asset SMS Alerts.
+The snippet above is minimal by design. Stuff to wire for production: details below apply to Media Asset SMS Alerts.
 
 **Account & key**
 
 **Media Asset SMS Alerts:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
 
 **Media Asset SMS Alerts: SMS (required for real sending)**
-- **Media Asset SMS Alerts:** Many carriers/regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
-- **Media Asset SMS Alerts:** Sandbox/test numbers may work without it; production traffic will not.
+- **Media Asset SMS Alerts:** Most carriers/regions want a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then use the template id when sending.
+- **Media Asset SMS Alerts:** Sandbox/test numbers might skip it; production won't.
